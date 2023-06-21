@@ -25,14 +25,7 @@
 # 2.11) Converts the spark DataFrame to JSON format.
 # 2.12) Stops the Spark session.
 
-#DIFFICULTY FACING
-
-# 1. Spark is a multi-language ENGINE for big data processing,so after running the program,it needs time for execution.
-#     for processing large sets of data
-# 2. I am connected to WSL using the distro "Ubuntu 22.04" to run my spark program. So simultaneously, Windows and
-#    Ubuntu is working. It slows down my Spark program's execution.
-#3. I am waiting for a model in the pickle file from another team member, but I am still using the model that I created.
-#   Also waiting for API integration with Spark .They try to install Spark on their Windows PC,but it fails.  
+ 
 #######################################################################################################
 import pickle
 from sklearn.linear_model import LogisticRegression
