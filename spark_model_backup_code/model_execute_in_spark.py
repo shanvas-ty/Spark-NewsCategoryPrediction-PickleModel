@@ -25,7 +25,14 @@
 # 2.11) Converts the spark DataFrame to JSON format.
 # 2.12) Stops the Spark session.
 
- 
+#DIFFICULTY FACING
+
+# 1. Spark is a multi-language ENGINE for big data processing,so after running the program,it needs time for execution.
+#     for processing large sets of data
+# 2. I am connected to WSL using the distro "Ubuntu 22.04" to run my spark program. So simultaneously, Windows and
+#    Ubuntu is working. It slows down my Spark program's execution.
+#3. I am waiting for a model in the pickle file from another team member, but I am still using the model that I created.
+#   Also waiting for API integration with Spark .They try to install Spark on their Windows PC,but it fails.  
 #######################################################################################################
 import pickle
 from sklearn.linear_model import LogisticRegression
@@ -51,50 +58,63 @@ from nltk.stem import WordNetLemmatizer
 def process_data(data):    #Preprocesses the input data by performing the following steps:
 
     # Download stopwords and lemmatization data
-    nltk.download('stopwords')  #after download disable this 
-    nltk.download('wordnet')    #after download disable this 
-    nltk.download('punkt')      #after download disable this 
+    # nltk.download('stopwords')  #after download disable this 
+    # nltk.download('wordnet')    #after download disable this 
+    # nltk.download('punkt')      #after download disable this 
 
-    print("            PREPROCESSES THE INPUT DATA BY PERFORMING THE FOLLOWING STEPS: ")
+    # print("            PREPROCESSES THE INPUT DATA BY PERFORMING THE FOLLOWING STEPS: ")
+    sentences=data
+    # Split the sentences using the dot as a delimiter
+    sentence_list = sentences.split(".")
+    print("sentence_list: ",sentence_list)
+
+    # Strip the spaces from each sentence
+    stripped_sentences = [sentence.strip(" ") for sentence in sentence_list]
+    print("stripped_sentences: ",stripped_sentences)
+
+    # Rejoin the sentences with the dot
+    rejoin_data = ".".join(stripped_sentences)
+    print("result :",rejoin_data)
+
     # 1. Converts the text to lowercase.
-    text = data.lower()
+    text = rejoin_data.lower()
 
     # Replace special characters and punctuation followed by a letter with a space and the letter itself
     text = re.sub(r"[^\w\s](?=[a-zA-Z])", " ", text) 
-    print("Text after removing dots, commas, special characters, and punctuation with space: ---", text)
+    # print("Text after removing dots, commas, special characters, and punctuation with space: ---", text)
 
     # Remove remaining special characters and punctuation
     text = re.sub(r"[^\w\s]", "", text)
-    print("Text after removing remaining special characters and punctuation: ---", text)
+    # print("Text after removing remaining special characters and punctuation: ---", text)
 
     # Remove numbers
     text = re.sub(r"\d+", "", text)
-    print("Text after removing numbers: ---", text)
+    # print("Text after removing numbers: ---", text)
 
     # Tokenize the text into individual words or tokens
     tokens = word_tokenize(text)
-    print("Text after tokenization: ---", tokens)
+    # print("Text after tokenization: ---", tokens)
 
     # Remove stop words
     stop_words = set(stopwords.words("english"))
     tokens = [word for word in tokens if word not in stop_words]
-    print("Text after removing stop words: ---", tokens)
+    # print("Text after removing stop words: ---", tokens)
 
     # Lemmatize the words to their base form
     lemmatizer = WordNetLemmatizer()
     tokens = [lemmatizer.lemmatize(word) for word in tokens]
-    print("Text after lemmatization: ---", tokens)
+    # print("Text after lemmatization: ---", tokens)
 
     # Remove duplicate tokens
     tokens = list(set(tokens))
-    print("Text after removing duplicate tokens: ---", tokens)
+    # print("Text after removing duplicate tokens: ---", tokens)
 
     # Join the processed tokens back into a clean text
     processed_text = " ".join(tokens)
    
-    print("Processed text: ---", processed_text)
-    print("type of process text",type(processed_text))
-    return processed_text
+    # print("Processed text: ---", processed_text)
+    # print("type of process text",type(processed_text))
+    return rejoin_data,processed_text
 
 #spark codes write inside spark_model() function
 def spark_model(model_filepath,vectorizer_filepath,data):  #spark codes write inside spark_model() function
@@ -110,22 +130,29 @@ def spark_model(model_filepath,vectorizer_filepath,data):  #spark codes write in
     models = pickle.loads(model_rdd_data[0][1])
     broadcast_model = sc.broadcast(models)
 
-    sentences = data.split('.')
- 
-    # Store sentences in the new_paragraphs list, again split " "
-    new_sentences = [sentence.strip(" ") for sentence in sentences]
-    print("New sentences: ",new_sentences)
-    print("data type of new_sentences:",type(new_sentences))
 
-    # Join the cleaned sentences back into a single string
-    data = '.'.join(new_sentences)
-    orginal_data=[data]
+    # sentences=data
+    # # Split the sentences using the dot as a delimiter
+    # sentence_list = sentences.split(".")
+    # print("sentence_list: ",sentence_list)
+
+    # # Strip the spaces from each sentence
+    # stripped_sentences = [sentence.strip(" ") for sentence in sentence_list]
+    # print("stripped_sentences: ",stripped_sentences)
+
+    # # Rejoin the sentences with the dot
+    # rejoin_data = ".".join(stripped_sentences)
+   
+    # orginal_data=[rejoin_data]
+
+    # # Process the data using the process_data function
+    # process_sentences=[process_data(rejoin_data)]
 
     # Process the data using the process_data function
-    process_sentences=[process_data(data)]
+    rejoin_data,process_sentences= process_data(data)
 
     # Zip the lists together
-    list_collect = list(zip(orginal_data,process_sentences))
+    list_collect = list(zip([rejoin_data],[process_sentences]))
 
     # Create a spark DataFrame from the zipped data
     df_pred = spark.createDataFrame(list_collect, ["Content","Process_content"])
@@ -173,6 +200,15 @@ def main():
     # Loop over the JSON output and print each row
     for row in output_json.collect():
         print(row)
+
+    
+    # # Loop over the JSON output and print each row
+    # for row in output_json.collect():
+    #     row_dict = json.loads(row)
+    #     for key, value in row_dict.items():
+    #         print(key, ":", value)  
+
+       
 main()  #it call main() function
 
 #________________________________________________________________________________________________________________
