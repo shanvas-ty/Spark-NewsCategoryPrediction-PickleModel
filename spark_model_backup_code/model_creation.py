@@ -35,15 +35,15 @@ def process_data(data):    #Preprocesses the input data by performing the follow
     sentences=data
     # Split the sentences using the dot as a delimiter
     sentence_list = sentences.split(".")
-    print("sentence_list: ",sentence_list)
+    # print("sentence_list: ",sentence_list)
 
     # Strip the spaces from each sentence
     stripped_sentences = [sentence.strip(" ") for sentence in sentence_list]
-    print("stripped_sentences: ",stripped_sentences)
+    # print("stripped_sentences: ",stripped_sentences)
 
     # Rejoin the sentences with the dot
     rejoin_data = ".".join(stripped_sentences)
-    print("result :",rejoin_data)
+    # print("result :",rejoin_data)
 
     # 1. Converts the text to lowercase.
     text = rejoin_data.lower()
@@ -83,7 +83,13 @@ def process_data(data):    #Preprocesses the input data by performing the follow
    
     # print("Processed text: ---", processed_text)
     # print("type of process text",type(processed_text))
-    return rejoin_data,processed_text
+    # Assign different values to a and b based on the calling function
+    if caller == 'modelcreation_call':
+        return processed_text
+    elif caller == 'modelload_call':
+        return rejoin_data,processed_text
+    # return rejoin_data,processed_text
+    # return processed_text
 
 # #spark codes write inside spark_model() function
 # def spark_model(model_filepath,vectorizer_filepath,data):  #spark codes write inside spark_model() function
@@ -186,7 +192,9 @@ def read_data():
     # print(n_df.columns)    #['category', 'short_description']
 
     x = n_df["short_description"]
+    
     processed_sentences = [process_data(sentence) for sentence in x]
+    
     df_pred = pd.DataFrame(processed_sentences, columns=["short_description"])
     # OR
     # list_collect = list(zip(processed_sentences))
@@ -210,7 +218,9 @@ def read_data():
     return(x,y)
 
 # def model_creation(model_filepath,vectorizer_filepath,data):
-def model_creation():    
+def model_creation():  
+    global caller
+    caller = 'modelcreation_call'  
 #     # Read the data from the CSV file
 #     # df = pd.read_csv('E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\news_categories.csv')
 
@@ -218,13 +228,13 @@ def model_creation():
 #     # x_train = df['unique_words']
 #     # y_train = df['category']
     x,y=read_data()
-
-    # Convert text data into numerical features using TF-IDF vectorization
-    vectorizer = TfidfVectorizer()
-    x = vectorizer.fit_transform(x)
-    
+       
      # Split the dataset into training and testing sets
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+
+    # # Fit and transform the training data ,Convert text data into numerical features using TF-IDF vectorization 
+    vectorizer = TfidfVectorizer()
+    x_train = vectorizer.fit_transform(x_train)
 
     # Train the logistic regression model
     model = LogisticRegression(max_iter=1000)
@@ -232,17 +242,19 @@ def model_creation():
 
   
     # # Predictions on the test set using the best model
-    # # Vectorize the test data
-    # x_test  = vectorizer.transform(x_test)
-    # y_pred = model.predict(x_test)
+
+    # ## Transform the testing data. Vectorize the test data
+    x_test  = vectorizer.transform(x_test)
+    y_pred = model.predict(x_test)
+    
     # # y_pred = best_model.predict(x_test)
     
     # # #  Evaluate the Model
-    # accuracy = accuracy_score(y_test, y_pred)
+    accuracy = accuracy_score(y_test, y_pred)
     # confusion_mtx = confusion_matrix(y_test, y_pred)
     # classification_rep = classification_report(y_test, y_pred)
 
-    # print("Accuracy:", accuracy)
+    print("Accuracy:", accuracy)
     # print("Confusion Matrix:\n", confusion_mtx)
     # print("Classification Report:\n", classification_rep)
 #---------------------
@@ -257,6 +269,8 @@ def model_creation():
 # model_creation()
 
 def model_load(model_filepath,vectorizer_filepath,data):
+    global caller
+    caller = 'modelload_call'
      #predicit output
     ###############
     
@@ -319,7 +333,7 @@ def mainn():
 
     # Print the JSON data
     print(output_json)
-mainn() 
+# mainn() 
 
 # ###################################################################################################################
 
