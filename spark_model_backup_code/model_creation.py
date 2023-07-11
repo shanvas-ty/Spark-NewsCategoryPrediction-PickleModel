@@ -182,10 +182,76 @@ def read_data():
     # # print(df["unique_words"])
 
 
-
     df = pd.read_json("E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\News_Category_Dataset_v3.json", lines=True)
-    # print(df.columns)  #['link', 'headline', 'category', 'short_description', 'authors', 'date']
+   
+    #****************************************************    
+    # #  Show Top 5 Records
+    # df.head()
 
+    # # # Shape of the dataset
+    # df.shape           #(209527, 6)
+
+    # # Dataset information
+    # print(df.columns)  #['link', 'headline', 'category', 'short_description', 'authors', 'date']
+    #---------------------------------------    
+#     # 3. Data Checks to perform
+#    * Check missing values
+#    * Check Duplicates
+#    * Chek data type
+#    * Check the number of unique values of each column
+#    * Check statistics of data set
+#    * Check various categories present in the different categorical column
+
+    # #3.1 Check Missing values
+        # df.isnull().sum()
+    #     # OR
+    # df.isna().sum()  
+
+    # # if missing value present,then delete missing values
+    # df.dropna( inplace=True) #remove null values
+
+    # # 3.2 Check Duplicates
+    # df.duplicated().sum()
+
+    # # if duplicates present then remove duplicate
+    # ndf=df.drop_duplicates()
+    # ndf.duplicated().sum()
+
+    # # 3.3 Check data types
+    # ndf.info()
+
+    # # 3.4 Checking the number of unique values of each column
+    # df.nunique()
+
+    # # 3.5 Check statistics of data set
+    # df.describe()
+    #----------------------------------------------
+    # # 3.7 Exploring Data
+    # print("Categories in 'link' variable:  ",end=" ")
+    # print(df["link"].unique())
+
+    # print("Categories in 'headline' variable:  ",end=" ")
+    # print(df["headline"].unique())
+
+    # print("Categories in 'category' variable:  ",end=" ")
+    # print(df["category"].unique())
+
+    # print("Categories in 'short_description' variable:  ",end=" ")
+    # print(df["short_description"].unique())
+
+    # print("Categories in 'authors' variable:  ",end=" ")
+    # print(df["authors"].unique())
+
+    # print("Categories in 'date' variable:  ",end=" ")
+    # print(df["date"].unique())
+    #-----------------------------------------------------
+    # # define numerical and categorical columns
+    # numeric_features =[feature for feature in df.columns if df[feature].dtype != 'O']
+    # categorical_features =[feature for feature in df.columns if df[feature].dtype == 'O']
+
+    # print("we have ",len(numeric_features) ,"numeric_features: ",numeric_features)
+    # print("we have ",len(categorical_features) ,"categorical_features: ",categorical_features)
+    #**********************************************************
     # Drop columns from the DataFrame
     columns_to_drop = ['link', 'headline', 'authors','date']  # Replace with the actual column names you want to drop
     n_df = df.drop(columns=columns_to_drop)
