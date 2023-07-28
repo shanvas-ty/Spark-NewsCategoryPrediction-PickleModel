@@ -24,6 +24,106 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 
+import time,datetime
+# # pip install pymongo
+import pymongo 
+
+
+def check_database():
+    # Connect to MongoDB
+    myclient = pymongo.MongoClient('mongodb+srv://shanvas786:toor@cluster0.un4re1j.mongodb.net/')
+    mydb = myclient['modeldatabase']
+
+    L =mydb.list_collection_names()
+  
+    d={}
+    # d[1]=L[0]
+    d[1]= {time.ctime(time.time()):L}
+    print("inital collection:",d)
+    i=1
+    flag = 0
+    while True:
+        
+        # Retrieve documents with a processed_message_id value of None
+        documents=mydb.list_collection_names()
+        
+        for document in documents:
+            i=i+1
+            if document not in L:
+                current_time = datetime.datetime.now()
+                formatted_time = current_time.strftime("%I:%M %p, %Y-%m-%d")
+                d[i] = {formatted_time:document}
+                # d[i] = document
+                L.append(document)
+                
+                mycol =mydb['info']
+                mylist=[]
+                mylist.append({"Time":formatted_time,"Updated_collection":document})
+                x = mycol.insert_many(mylist)
+                print(x.inserted_ids)
+                while(True):
+                    if document in mydb.list_collection_names() :
+                        if mydb[document].estimated_document_count() == 0 :
+                            print("New table: ",document," is found.. Please wait server database data is uploading..... ")
+                        else:
+                            print("server database data is uploading Start..... ")
+                            flag = 1
+                            time.sleep(2 * 60)  # Sleep for 3 minutes (3 * 60 seconds)
+                            break
+                    else:
+                        myquery = { "Updated_collection":document }
+                        mycol.delete_many(myquery)
+                        break
+            else:
+                i = i -1                  
+        print("-----updated database details------")
+        print("Collection details in List:",L)
+        print("Collection details in Dictionary:",d)
+        if flag ==1:
+            # return L[-1]
+            break
+        time.sleep(10)
+    # return L[-1]  
+# p=check_database() 
+# print(p)
+#--------------------------------------------------------------------------------------------------
+
+# Step 1: Dataset Update
+def update_dataset():
+    # Connect to MongoDB
+    myclient = pymongo.MongoClient('mongodb+srv://shanvas786:toor@cluster0.un4re1j.mongodb.net/')
+    mydb = myclient['modeldatabase']
+    
+    def read_updated_table():
+        mycol = mydb['info'] 
+        mydoc = mycol.find().sort("_id",-1)[0] 
+        # print(mydoc["Updated_collection"])
+        return mydoc["Updated_collection"]
+
+    def download_data(table):
+        import json
+        from bson import ObjectId
+
+        mycol = mydb[table]    
+        # Retrieve all documents from the collection
+        documents = mycol.find()
+
+        class JSONEncoder(json.JSONEncoder):
+            def default(self, o):
+                if isinstance(o, ObjectId):
+                    return str(o)
+                return super().default(o)
+
+        # Export the documents to a JSON file
+        with open('collection_data.json', 'w') as file:
+            for document in documents:
+                json.dump(document, file, cls=JSONEncoder)
+                file.write('\n')
+        print("Collection downloaded and saved as 'collection_data.json'")
+        
+    table= read_updated_table()
+    download_data(table) 
+#-------------------------------------------------------------------------------------------
 def process_data(data):    #Preprocesses the input data by performing the following steps:
 
     # Download stopwords and lemmatization data
@@ -83,14 +183,13 @@ def process_data(data):    #Preprocesses the input data by performing the follow
    
     # print("Processed text: ---", processed_text)
     # print("type of process text",type(processed_text))
-    # Assign different values to a and b based on the calling function
+    # Assign different values to caller based on the calling function
     if caller == 'readdata_call':
         return processed_text
     elif caller == 'modelload_call':
         return rejoin_data,processed_text
     # return rejoin_data,processed_text
     # return processed_text
-
 
 def read_data():
     global caller
@@ -99,8 +198,7 @@ def read_data():
     # # # print(df.head(10))
     # # print(df["unique_words"])
 
-
-    df = pd.read_json("E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\News_Category_Dataset_v3.json", lines=True)
+    df = pd.read_json("E:\\Projectss\\mlproject\\collection_data.json", lines=True)
    
     #****************************************************    
     # #  Show Top 5 Records
@@ -201,20 +299,10 @@ def read_data():
     # print(n_df)
     return(x,y)
 
-#         #####     MODEL CREATION ...pickle file creation ############################
-# def model_creation(model_filepath,vectorizer_filepath,data):
-def model_creation():  
-    # global caller
-    # caller = 'modelcreation_call'  
-#     # Read the data from the CSV file
-#     # df = pd.read_csv('E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\news_categories.csv')
-
-#     #  # Split the data into features and labels
-#     # x_train = df['unique_words']
-#     # y_train = df['category']
-    x,y=read_data()
-       
-     # Split the dataset into training and testing sets
+#----------------------------------------------------------------------------------------------
+# Step 2: Model Training
+def train_model(x,y):
+    # Split the dataset into training and testing sets
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
 
     # # Fit and transform the training data ,Convert text data into numerical features using TF-IDF vectorization 
@@ -224,8 +312,9 @@ def model_creation():
     # Train the logistic regression model
     model = LogisticRegression(max_iter=1000)
     model.fit(x_train, y_train)
-
-  
+    return(vectorizer,model,x_test,y_test)
+# Step 3: Model Testing
+def test_model(vectorizer,model,x_test,y_test):
     # # Predictions on the test set using the best model
 
     # ## Transform the testing data. Vectorize the test data
@@ -243,17 +332,84 @@ def model_creation():
     # print("Confusion Matrix:\n", confusion_mtx)
     # print("Classification Report:\n", classification_rep)
 #---------------------
-    
-   # Save the trained model as a pickle file
+# Step 4: Model Deployment
+def deploy_model(vectorizer,model):
+    # Save the trained model as a pickle file
     with open('second_classification_model.pkl', 'wb') as f:
         pickle.dump(model, f)
 
     # Save the vectorizer as a pickle file
     with open('vectorizer.pkl', 'wb') as f:
-        pickle.dump(vectorizer, f)
-# model_creation()
+        pickle.dump(vectorizer, f)   
 
+# Step 8: CI/CD Workflow
+def mlops_pipeline():
+    print("staring MLOPS pipeline function")
+    check_database()
+    # print("a:",a)
+    
+    # Step 1: Dataset Update
+    update_dataset()
+
+    x,y=read_data()
+
+    # Step 2: Model Training
+    vectorizer,model,x_test,y_test=train_model(x,y)
+    
+    # Step 3: Model Testing
+    test_model(vectorizer,model,x_test,y_test)
+    
+    # Step 4: Model Deployment
+    deploy_model(vectorizer,model)
+
+
+def call_mlops_pipeline():
+    # pip install GitPython
+    import git
+    repo = git.Repo(search_parent_directories=True)
+    git_branch = repo.active_branch.name
+    print(git_branch)
+
+    if git_branch == "main":
+        try:
+            import schedule,time
+        #    # #   Schedule the task to run every 5 days:
+        #         # schedule.every(5).days.do(mlops_pipeline())
+                # Schedule the task to run now
+            # schedule.every(3).days.at("22:33").do(mlops_pipeline())  
+
+
+            # Calculate the number of seconds in 6 months
+            interval =  6 * 30 * 24 * 60 * 60  # 6 months * 30 days * 24 hours * 60 minutes * 60 seconds
+
+            # Schedule the task to run after 6 months 
+            schedule.every(interval).seconds.do(mlops_pipeline())
+
+            
+            # # Schedule the task to run after 6 months at 22:33
+            # schedule.every(interval).seconds.at("22:33").do(mlops_pipeline())
+
+        #     # #Run the scheduler continuously:
+            while True:
+                schedule.run_pending()
+                # schedule.run_all()
+                time.sleep(10)
+            
+        #     # Run the pending tasks once
+            # schedule.run_all()
+            # mlops_pipeline()
+        except Exception as e:
+            print("An error occurred:", str(e))    
+    else:
+        print("Not on the main branch. Skipping the CI/CD workflow.")    
+
+    #create branch    -----  git branch sub-branch1
+    #                 ------ git checkout sub-branch1
+
+# call_mlops_pipeline()
+#------------------------------------------------------------------------
 def model_load(model_filepath,vectorizer_filepath,data):
+    import pickle
     global caller
     caller = 'modelload_call'
      #predicit output
@@ -265,34 +421,9 @@ def model_load(model_filepath,vectorizer_filepath,data):
     with open(vectorizer_filepath, 'rb') as f:    
         vectorizer = pickle.load(f)    
    
-    # data = "We need a healthy life.healthy surroundings we make for our future"
-
-    # Process the input data and make predictions
     l = {}
 
-    # sentences=data
-    # # Split the sentences using the dot as a delimiter
-    # sentence_list = sentences.split(".")
-    # print("sentence_list: ",sentence_list)
-
-    # # Strip the spaces from each sentence
-    # stripped_sentences = [sentence.strip(" ") for sentence in sentence_list]
-    # print("stripped_sentences: ",stripped_sentences)
-
-    # # Rejoin the sentences with the dot
-    # rejoin_data = ".".join(stripped_sentences)
-    # print("result :",rejoin_data)
-
-    # # sentences = data.split('.')
-    
-    # # # Remove leading and trailing spaces from each sentence
-    # # new_sentences = [sentence.strip(" ") for sentence in sentences]
-    # # print("New sentences:",new_sentences)
-        
-    # # # Join the cleaned sentences back into a single string
-    # # data = '.'.join(new_sentences)
-
-    # Process the data using the process_data function
+     # Process the data using the process_data function
     rejoin_data,process_sentences= process_data(data)
 
     new_paragraph_features = vectorizer.transform([process_sentences]) 
@@ -302,23 +433,20 @@ def model_load(model_filepath,vectorizer_filepath,data):
     j_data=json.loads(json_data)
     # print(json_data)
     return j_data
-# model_load()
 
-def mainn():
-    # model_filepath = "E:\.\jangoclass\\internship\\second_classification_model.pkl"
-    # vectorizer_filepath="E:\\jangoclass\\internship\\vectorizer.pkl"
-    model_filepath = 'E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\second_classification_model.pkl'
-    vectorizer_filepath='E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\vectorizer.pkl'
-
-    # data = input("Enter the news in paragraph (separated by dot): ")
-    # data = "Finance of india raise gobally.we need a healthy life.in sports sachin hit century.In technology 6G phone launch new week.technology india made progress.\
-                        #  Shewag score century.Us navy attack india"
-    data ="sachin score 100.he played well.he get a trophy"
+def predict():
+    model_filepath = 'E:\\Projectss\\mlproject\\second_classification_model.pkl'
+    vectorizer_filepath='E:\\Projectss\\mlproject\\vectorizer.pkl'
+    data = input("Enter the news in paragraph (separated by dot): ")
+    # data ="sachin score 100.he played well.he get a trophy"
     output_json=model_load(model_filepath,vectorizer_filepath,data)
-
-    # Print the JSON data
-    print(output_json)
-# mainn() 
+    for i,j in output_json.items():
+        print(i,":",j)
+# predict() 
+# Main execution
+if __name__ == "__main__":
+    call_mlops_pipeline()
+    predict()
 
 # ###################################################################################################################
 # #spark codes write inside spark_model() function
@@ -420,8 +548,6 @@ def mainn():
 
 
 #________________________________________________________________________________________________________________
-
-
 ########################    use this function instead of spark udf function ##############################################
 # # def predict(*new_sentences):
 # #     l={}
@@ -499,4 +625,3 @@ def mainn():
 
 
 #####################################################
-

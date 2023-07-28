@@ -66,15 +66,15 @@ def process_data(data):    #Preprocesses the input data by performing the follow
     sentences=data
     # Split the sentences using the dot as a delimiter
     sentence_list = sentences.split(".")
-    print("sentence_list: ",sentence_list)
+    # print("sentence_list: ",sentence_list)
 
     # Strip the spaces from each sentence
     stripped_sentences = [sentence.strip(" ") for sentence in sentence_list]
-    print("stripped_sentences: ",stripped_sentences)
+    # print("stripped_sentences: ",stripped_sentences)
 
     # Rejoin the sentences with the dot
     rejoin_data = ".".join(stripped_sentences)
-    print("result :",rejoin_data)
+    # print("result :",rejoin_data)
 
     # 1. Converts the text to lowercase.
     text = rejoin_data.lower()
@@ -114,10 +114,18 @@ def process_data(data):    #Preprocesses the input data by performing the follow
    
     # print("Processed text: ---", processed_text)
     # print("type of process text",type(processed_text))
-    return rejoin_data,processed_text
-
+    # Assign different values to a and b based on the calling function
+    if caller == 'readdata_call':
+        return processed_text
+    elif caller == 'modelload_call' or caller =='sparkmodel_call':
+        return rejoin_data,processed_text
+    # return rejoin_data,processed_text
+    # return processed_text
+    
 #spark codes write inside spark_model() function
 def spark_model(model_filepath,vectorizer_filepath,data):  #spark codes write inside spark_model() function
+    global caller
+    caller = 'sparkmodel_call'
     # Create spark session
     spark = SparkSession.builder.getOrCreate()
     sc = spark.sparkContext
@@ -182,24 +190,32 @@ def spark_model(model_filepath,vectorizer_filepath,data):  #spark codes write in
     # Convert df_pred to JSON format
     df_pred_json = df_pred.toJSON()
     return df_pred_json
+
+    # Convert df_pred_json to a list of dictionaries
+    result_list = []
+    for row in df_pred_json.collect():
+        result_list.append(json.loads(row))
+    
+    return result_list[0]
     
     # Stop the SparkSession
     sc.stop()
 
 #main() function is used to call spark_model() function & pass argument as  user data & filepath of model & vectorizer
 def main():  
-    model_filepath = '/home/shan/spark_model_backup_code/second_classification_model.pkl' 
-    vectorizer_filepath = '/home/shan/spark_model_backup_code/vectorizer.pkl'
+    model_filepath = '/home/shan/spark_model_backup_code_julybackup/second_classification_model.pkl' 
+    vectorizer_filepath = '/home/shan/spark_model_backup_code_julybackup/vectorizer.pkl'
 
     # Prompt the user to enter the news in a paragraph separated by dots
     userdata = input("Enter the news in paragraph (separated by dot): ")
 
     # Call the spark_model function with the provided file paths and user input
     output_json = spark_model(model_filepath, vectorizer_filepath, userdata)
+    print(output_json)
+    # print(type(output_json))
 
-    # Loop over the JSON output and print each row
-    for row in output_json.collect():
-        print(row)
+    for key,value in output_json.items():
+        print(key ,":",value)
 
     
     # # Loop over the JSON output and print each row
@@ -216,28 +232,158 @@ main()  #it call main() function
 
 #         #####     MODEL CREATION ...pickle file creation for spark model############################
 
+# def read_data():
+#     global caller
+#     caller = 'readdata_call' 
+#     # # df = pd.read_csv("E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\news_categories.csv")
+#     # # # print(df.head(10))
+#     # # print(df["unique_words"])
 
 
-# def model_creation(model_filepath,vectorizer_filepath,data):
-# # def model_creation():    
-#     # Read the data from the CSV file
-#     df = pd.read_csv('/home/shan/news_categories.csv')
+#     df = pd.read_json("E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\News_Category_Dataset_v3.json", lines=True)
+   
+#     #****************************************************    
+#     # #  Show Top 5 Records
+#     # df.head()
 
-#      # Split the data into features and labels
-#     x_train = df['unique_words']
-#     y_train = df['category']
+#     # # # Shape of the dataset
+#     # df.shape           #(209527, 6)
 
-#     # Convert text data into numerical features using TF-IDF vectorization
+#     # # Dataset information
+#     # print(df.columns)  #['link', 'headline', 'category', 'short_description', 'authors', 'date']
+#     #---------------------------------------    
+# #     # 3. Data Checks to perform
+# #    * Check missing values
+# #    * Check Duplicates
+# #    * Chek data type
+# #    * Check the number of unique values of each column
+# #    * Check statistics of data set
+# #    * Check various categories present in the different categorical column
+
+#     # #3.1 Check Missing values
+#         # df.isnull().sum()
+#     #     # OR
+#     # df.isna().sum()  
+
+#     # # if missing value present,then delete missing values
+#     # df.dropna( inplace=True) #remove null values
+
+#     # # 3.2 Check Duplicates
+#     # df.duplicated().sum()
+
+#     # # if duplicates present then remove duplicate
+#     # ndf=df.drop_duplicates()
+#     # ndf.duplicated().sum()
+
+#     # # 3.3 Check data types
+#     # ndf.info()
+
+#     # # 3.4 Checking the number of unique values of each column
+#     # df.nunique()
+
+#     # # 3.5 Check statistics of data set
+#     # df.describe()
+#     #----------------------------------------------
+#     # # 3.7 Exploring Data
+#     # print("Categories in 'link' variable:  ",end=" ")
+#     # print(df["link"].unique())
+
+#     # print("Categories in 'headline' variable:  ",end=" ")
+#     # print(df["headline"].unique())
+
+#     # print("Categories in 'category' variable:  ",end=" ")
+#     # print(df["category"].unique())
+
+#     # print("Categories in 'short_description' variable:  ",end=" ")
+#     # print(df["short_description"].unique())
+
+#     # print("Categories in 'authors' variable:  ",end=" ")
+#     # print(df["authors"].unique())
+
+#     # print("Categories in 'date' variable:  ",end=" ")
+#     # print(df["date"].unique())
+#     #-----------------------------------------------------
+#     # # define numerical and categorical columns
+#     # numeric_features =[feature for feature in df.columns if df[feature].dtype != 'O']
+#     # categorical_features =[feature for feature in df.columns if df[feature].dtype == 'O']
+
+#     # print("we have ",len(numeric_features) ,"numeric_features: ",numeric_features)
+#     # print("we have ",len(categorical_features) ,"categorical_features: ",categorical_features)
+#     #**********************************************************
+#     # Drop columns from the DataFrame
+#     columns_to_drop = ['link', 'headline', 'authors','date']  # Replace with the actual column names you want to drop
+#     n_df = df.drop(columns=columns_to_drop)
+#     # print(n_df.columns)    #['category', 'short_description']
+
+#     x = n_df["short_description"]
+    
+#     processed_sentences = [process_data(sentence) for sentence in x]
+    
+#     df_pred = pd.DataFrame(processed_sentences, columns=["short_description"])
+#     # OR
+#     # list_collect = list(zip(processed_sentences))
+#     # df_pred = pd.DataFrame(list_collect, columns=["short_description"])
+
+#     x = df_pred["short_description"]
+ 
+#     # print(x.unique())
+
+
+#     y =n_df["category"]
+#     # # Print the updated DataFrame
+#     print(y.unique())
+
+#     # n=n_df['category'].isnull().sum()
+#     # print(n)
+
+
+#     # df.dropna(subset=['category', 'short_Description'], inplace=True) #remove null values
+#     # print(n_df)
+#     return(x,y)
+
+# #         #####     MODEL CREATION ...pickle file creation ############################
+# # def model_creation(model_filepath,vectorizer_filepath,data):
+# def model_creation():  
+#     # global caller
+#     # caller = 'modelcreation_call'  
+# #     # Read the data from the CSV file
+# #     # df = pd.read_csv('E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\news_categories.csv')
+
+# #     #  # Split the data into features and labels
+# #     # x_train = df['unique_words']
+# #     # y_train = df['category']
+#     x,y=read_data()
+       
+#      # Split the dataset into training and testing sets
+#     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+
+#     # # Fit and transform the training data ,Convert text data into numerical features using TF-IDF vectorization 
 #     vectorizer = TfidfVectorizer()
 #     x_train = vectorizer.fit_transform(x_train)
 
-#      # Split the dataset into training and testing sets
-#     x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
-
 #     # Train the logistic regression model
-#     model = LogisticRegression()
+#     model = LogisticRegression(max_iter=1000)
 #     model.fit(x_train, y_train)
 
+  
+#     # # Predictions on the test set using the best model
+
+#     # ## Transform the testing data. Vectorize the test data
+#     x_test  = vectorizer.transform(x_test)
+#     y_pred = model.predict(x_test)
+    
+#     # # y_pred = best_model.predict(x_test)
+    
+#     # # #  Evaluate the Model
+#     accuracy = accuracy_score(y_test, y_pred)
+#     # confusion_mtx = confusion_matrix(y_test, y_pred)
+#     # classification_rep = classification_report(y_test, y_pred)
+
+#     print("Accuracy:", accuracy)
+#     # print("Confusion Matrix:\n", confusion_mtx)
+#     # print("Classification Report:\n", classification_rep)
+# #---------------------
+    
 #    # Save the trained model as a pickle file
 #     with open('second_classification_model.pkl', 'wb') as f:
 #         pickle.dump(model, f)
@@ -245,52 +391,75 @@ main()  #it call main() function
 #     # Save the vectorizer as a pickle file
 #     with open('vectorizer.pkl', 'wb') as f:
 #         pickle.dump(vectorizer, f)
+# # model_creation()
 
-#      ##predicit output
-#     ################
+# def model_load(model_filepath,vectorizer_filepath,data):
+#     global caller
+#     caller = 'modelload_call'
+#      #predicit output
+#     ###############
     
-#     # with open(model_filepath, 'rb') as f:    
-#     #     model = pickle.load(f)      
+#     with open(model_filepath, 'rb') as f:    
+#         model = pickle.load(f)      
 
-#     # with open(vectorizer_filepath, 'rb') as f:    
-#     #     vectorizer = pickle.load(f)    
+#     with open(vectorizer_filepath, 'rb') as f:    
+#         vectorizer = pickle.load(f)    
    
-#     data = "We need a healthy life.healthy surroundings we make for our future"
+#     # data = "We need a healthy life.healthy surroundings we make for our future"
 
 #     # Process the input data and make predictions
 #     l = {}
-#     sentences = data.split('.')
+
+#     # sentences=data
+#     # # Split the sentences using the dot as a delimiter
+#     # sentence_list = sentences.split(".")
+#     # print("sentence_list: ",sentence_list)
+
+#     # # Strip the spaces from each sentence
+#     # stripped_sentences = [sentence.strip(" ") for sentence in sentence_list]
+#     # print("stripped_sentences: ",stripped_sentences)
+
+#     # # Rejoin the sentences with the dot
+#     # rejoin_data = ".".join(stripped_sentences)
+#     # print("result :",rejoin_data)
+
+#     # # sentences = data.split('.')
     
-#     # Remove leading and trailing spaces from each sentence
-#     new_sentences = [sentence.strip(" ") for sentence in sentences]
-#     print("New sentences:",new_sentences)
+#     # # # Remove leading and trailing spaces from each sentence
+#     # # new_sentences = [sentence.strip(" ") for sentence in sentences]
+#     # # print("New sentences:",new_sentences)
         
-#     # Join the cleaned sentences back into a single string
-#     data = '.'.join(new_sentences)
+#     # # # Join the cleaned sentences back into a single string
+#     # # data = '.'.join(new_sentences)
 
 #     # Process the data using the process_data function
-#     joined_sentences= process_data(data)
+#     rejoin_data,process_sentences= process_data(data)
 
-#     new_paragraph_features = vectorizer.transform([joined_sentences]) 
+#     new_paragraph_features = vectorizer.transform([process_sentences]) 
 #     predicted_category = model.predict(new_paragraph_features)[0]
-#     l.update({"Content":data,"Predicted category":predicted_category})
+#     l.update({"Content":rejoin_data,"Predicted_category":predicted_category})
 #     json_data = json.dumps(l)
+#     j_data=json.loads(json_data)
 #     # print(json_data)
-#     return json_data
-# # model_creation()
+#     return j_data
+# # model_load()
 
 # def mainn():
-#     model_filepath = '/home/shan/second_classification_model.pkl'
-#     vectorizer_filepath='/home/shan/vectorizer.pkl'
+#     # model_filepath = "E:\.\jangoclass\\internship\\second_classification_model.pkl"
+#     # vectorizer_filepath="E:\\jangoclass\\internship\\vectorizer.pkl"
+#     model_filepath = 'E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\second_classification_model.pkl'
+#     vectorizer_filepath='E:\\jangoclass\\internship\\myproject\\spark_model_backup_code\\vectorizer.pkl'
 
-#     data = input("Enter the news in paragraph (separated by dot): ")
+#     # data = input("Enter the news in paragraph (separated by dot): ")
 #     # data = "Finance of india raise gobally.we need a healthy life.in sports sachin hit century.In technology 6G phone launch new week.technology india made progress.\
-#     #                      Shewag score century.Us navy attack india"
-#     output_json=model_creation(model_filepath,vectorizer_filepath,data)
+#                         #  Shewag score century.Us navy attack india"
+#     data ="sachin score 100.he played well.he get a trophy"
+#     output_json=model_load(model_filepath,vectorizer_filepath,data)
 
 #     # Print the JSON data
 #     print(output_json)
 # # mainn() 
+
 
 # ###################################################################################################################
 
