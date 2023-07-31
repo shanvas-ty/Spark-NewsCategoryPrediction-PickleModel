@@ -1,5 +1,5 @@
 (1).change the filepath of  model_filepath & vectorizer_filepath   inside main() function
-(2) After the program"model_execute_in_spark.py" runs, it automatically downloads stopwords and lemmatization data. 
+(2) After the program"modelinMLOPS.py" runs, it automatically downloads stopwords and lemmatization data. 
    Once it's downloaded, we comment out the code for downloading stopwords and lemmatization data inside the process data() function.
 
 (3).To install the dependencies listed in a requirements.txt file, you can use the pip command. Here's how you can install the requirements:

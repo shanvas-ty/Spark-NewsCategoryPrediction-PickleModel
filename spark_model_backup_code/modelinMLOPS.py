@@ -434,7 +434,7 @@ def model_load(model_filepath,vectorizer_filepath,data):
     # print(json_data)
     return j_data
 
-def predict():
+def model_predict():
     model_filepath = 'E:\\Projectss\\mlproject\\second_classification_model.pkl'
     vectorizer_filepath='E:\\Projectss\\mlproject\\vectorizer.pkl'
     data = input("Enter the news in paragraph (separated by dot): ")
@@ -443,106 +443,112 @@ def predict():
     for i,j in output_json.items():
         print(i,":",j)
 # predict() 
+# # Main execution
+# if __name__ == "__main__":
+#     call_mlops_pipeline()
+#     model_predict()
+#     sparkmodel_predict()
+
+# ###################################################################################################################
+#spark codes write inside spark_model() function
+def spark_model(model_filepath,vectorizer_filepath,data):  #spark codes write inside spark_model() function
+    global caller
+    caller = 'sparkmodel_call'
+    # Create spark session
+    spark = SparkSession.builder.getOrCreate()
+    sc = spark.sparkContext
+
+    # Unpickle, pkl file
+    model_rdd_pkl = sc.binaryFiles(model_filepath)
+    model_rdd_data = model_rdd_pkl.collect() 
+
+    # Load and broadcast python object over spark nodes
+    models = pickle.loads(model_rdd_data[0][1])
+    broadcast_model = sc.broadcast(models)
+
+
+    # sentences=data
+    # # Split the sentences using the dot as a delimiter
+    # sentence_list = sentences.split(".")
+    # print("sentence_list: ",sentence_list)
+
+    # # Strip the spaces from each sentence
+    # stripped_sentences = [sentence.strip(" ") for sentence in sentence_list]
+    # print("stripped_sentences: ",stripped_sentences)
+
+    # # Rejoin the sentences with the dot
+    # rejoin_data = ".".join(stripped_sentences)
+   
+    # orginal_data=[rejoin_data]
+
+    # # Process the data using the process_data function
+    # process_sentences=[process_data(rejoin_data)]
+
+    # Process the data using the process_data function
+    rejoin_data,process_sentences= process_data(data)
+
+    # Zip the lists together
+    list_collect = list(zip([rejoin_data],[process_sentences]))
+
+    # Create a spark DataFrame from the zipped data
+    df_pred = spark.createDataFrame(list_collect, ["Content","Process_content"])
+    print("    SPARK DATA FRAME ")
+    df_pred.show()
+
+    # Load the pickled vectorizer
+    with open(vectorizer_filepath, 'rb') as f:    
+        vectorizer = pickle.load(f)
+
+    # Create udf and call predict method on broadcasted model
+    @udf(returnType=StringType())
+    def predict(*new_sentences):
+        for new_sentence in new_sentences:
+            new_sentence_features = vectorizer.transform([new_sentence])
+            predicted_category = broadcast_model.value.predict(new_sentence_features)[0]
+            return predicted_category
+
+    # Create predictions using spark udf
+    df_pred = df_pred.withColumn("Predicted Category", predict(df_pred['Process_content']))
+    print("    MODEL PREDICTION USING SPARK ")
+    df_pred.show()
+
+    # Select the necessary columns for prediction
+    df_pred = df_pred.select("Content","Predicted Category")
+
+    # Convert df_pred to JSON format
+    df_pred_json = df_pred.toJSON()
+    return df_pred_json
+    
+    # Stop the SparkSession
+    sc.stop()
+
+#main() function is used to call spark_model() function & pass argument as  user data & filepath of model & vectorizer
+def sparkmodel_predict():  
+    model_filepath = '/home/shan/spark_model_backup_code/second_classification_model.pkl' 
+    vectorizer_filepath = '/home/shan/spark_model_backup_code/vectorizer.pkl'
+
+    # Prompt the user to enter the news in a paragraph separated by dots
+    userdata = input("Enter the news in paragraph (separated by dot): ")
+
+    # Call the spark_model function with the provided file paths and user input
+    output_json = spark_model(model_filepath, vectorizer_filepath, userdata)
+
+    # Loop over the JSON output and print each row
+    for row in output_json.collect():
+        print(row)
+
+    
+    # # Loop over the JSON output and print each row
+    # for row in output_json.collect():
+    #     row_dict = json.loads(row)
+    #     for key, value in row_dict.items():
+    #         print(key, ":", value)  
+
 # Main execution
 if __name__ == "__main__":
     call_mlops_pipeline()
-    predict()
-
-# ###################################################################################################################
-# #spark codes write inside spark_model() function
-# def spark_model(model_filepath,vectorizer_filepath,data):  #spark codes write inside spark_model() function
-#     global caller
-#     caller = 'sparkmodel_call'
-#     # Create spark session
-#     spark = SparkSession.builder.getOrCreate()
-#     sc = spark.sparkContext
-
-#     # Unpickle, pkl file
-#     model_rdd_pkl = sc.binaryFiles(model_filepath)
-#     model_rdd_data = model_rdd_pkl.collect() 
-
-#     # Load and broadcast python object over spark nodes
-#     models = pickle.loads(model_rdd_data[0][1])
-#     broadcast_model = sc.broadcast(models)
-
-
-#     # sentences=data
-#     # # Split the sentences using the dot as a delimiter
-#     # sentence_list = sentences.split(".")
-#     # print("sentence_list: ",sentence_list)
-
-#     # # Strip the spaces from each sentence
-#     # stripped_sentences = [sentence.strip(" ") for sentence in sentence_list]
-#     # print("stripped_sentences: ",stripped_sentences)
-
-#     # # Rejoin the sentences with the dot
-#     # rejoin_data = ".".join(stripped_sentences)
-   
-#     # orginal_data=[rejoin_data]
-
-#     # # Process the data using the process_data function
-#     # process_sentences=[process_data(rejoin_data)]
-
-#     # Process the data using the process_data function
-#     rejoin_data,process_sentences= process_data(data)
-
-#     # Zip the lists together
-#     list_collect = list(zip([rejoin_data],[process_sentences]))
-
-#     # Create a spark DataFrame from the zipped data
-#     df_pred = spark.createDataFrame(list_collect, ["Content","Process_content"])
-#     print("    SPARK DATA FRAME ")
-#     df_pred.show()
-
-#     # Load the pickled vectorizer
-#     with open(vectorizer_filepath, 'rb') as f:    
-#         vectorizer = pickle.load(f)
-
-#     # Create udf and call predict method on broadcasted model
-#     @udf(returnType=StringType())
-#     def predict(*new_sentences):
-#         for new_sentence in new_sentences:
-#             new_sentence_features = vectorizer.transform([new_sentence])
-#             predicted_category = broadcast_model.value.predict(new_sentence_features)[0]
-#             return predicted_category
-
-#     # Create predictions using spark udf
-#     df_pred = df_pred.withColumn("Predicted Category", predict(df_pred['Process_content']))
-#     print("    MODEL PREDICTION USING SPARK ")
-#     df_pred.show()
-
-#     # Select the necessary columns for prediction
-#     df_pred = df_pred.select("Content","Predicted Category")
-
-#     # Convert df_pred to JSON format
-#     df_pred_json = df_pred.toJSON()
-#     return df_pred_json
-    
-#     # Stop the SparkSession
-#     sc.stop()
-
-# #main() function is used to call spark_model() function & pass argument as  user data & filepath of model & vectorizer
-# def main():  
-#     model_filepath = '/home/shan/spark_model_backup_code/second_classification_model.pkl' 
-#     vectorizer_filepath = '/home/shan/spark_model_backup_code/vectorizer.pkl'
-
-#     # Prompt the user to enter the news in a paragraph separated by dots
-#     userdata = input("Enter the news in paragraph (separated by dot): ")
-
-#     # Call the spark_model function with the provided file paths and user input
-#     output_json = spark_model(model_filepath, vectorizer_filepath, userdata)
-
-#     # Loop over the JSON output and print each row
-#     for row in output_json.collect():
-#         print(row)
-
-    
-#     # # Loop over the JSON output and print each row
-#     # for row in output_json.collect():
-#     #     row_dict = json.loads(row)
-#     #     for key, value in row_dict.items():
-#     #         print(key, ":", value)  
-
+    model_predict()  #normal model
+    sparkmodel_predict() #spark model
        
 # main()  #it call main() function
 
@@ -624,4 +630,4 @@ if __name__ == "__main__":
 # # test() 
 
 
-#####################################################
+###################################################
